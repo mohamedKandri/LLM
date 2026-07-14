@@ -81,7 +81,12 @@ class DistillConfig:
 
     @property
     def api_key(self) -> str | None:
-        return os.environ.get(self.openrouter["api_key_env"])
+        name = self.openrouter["api_key_env"]
+        key = os.environ.get(name) or _read_dotenv().get(name)
+        # The .env template ships with a placeholder — not a key.
+        if not key or key.startswith("PASTE-"):
+            return None
+        return key
 
     @property
     def local_only(self) -> bool:
@@ -106,6 +111,20 @@ class DistillConfig:
     @property
     def gold_set_path(self) -> Path:
         return ROOT / self.raw["benchmark"]["gold_set_path"]
+
+
+def _read_dotenv() -> dict[str, str]:
+    """Minimal .env reader (repo root). The key never lives in config.yaml;
+    .env is gitignored and is what the Settings UI writes/deletes."""
+    env_file = ROOT / ".env"
+    values: dict[str, str] = {}
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, _, v = line.partition("=")
+                values[k.strip()] = v.strip().strip("'\"")
+    return values
 
 
 def load_config(path: Path | None = None) -> DistillConfig:

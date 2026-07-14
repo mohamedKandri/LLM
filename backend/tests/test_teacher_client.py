@@ -71,6 +71,9 @@ def test_local_only_blocks_api(cfg, monkeypatch):
 
 def test_missing_api_key_raises(cfg, monkeypatch):
     monkeypatch.delenv(cfg.openrouter["api_key_env"], raising=False)
+    # Isolate from the developer's real .env — this test must never
+    # find a key, or it would fire a real network request.
+    monkeypatch.setattr("app.config._read_dotenv", lambda: {})
     client = TeacherClient(cfg, cfg.teacher)
     with pytest.raises(MissingAPIKeyError):
         client.complete([{"role": "user", "content": "hi"}])

@@ -14,7 +14,7 @@ teacher_tier: free            # "free" | "paid"
 
 teachers:
   free:
-    model: "meta-llama/llama-3.3-70b-instruct:free"
+    model: "qwen/qwen3-next-80b-a3b-instruct:free"
     rate_limit_per_min: 20    # OpenRouter free-tier limit
     budget:
       max_usd: 0.0            # free tier must never spend; any reported cost trips the cap
@@ -29,8 +29,10 @@ teachers:
 # Second-opinion model used by evaluator.py for RLAIF scoring of
 # non-code tasks. Kept separate from the teacher so you can judge
 # with a cheap model while generating with an expensive one.
+# Different model family than the teacher on purpose: judging your own
+# family's output invites self-preference bias.
 judge:
-  model: "meta-llama/llama-3.3-70b-instruct:free"
+  model: "nvidia/nemotron-3-super-120b-a12b:free"
   rate_limit_per_min: 20
   min_score: 7                # 1-10; pairs below this are discarded
   budget:
