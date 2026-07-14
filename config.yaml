@@ -47,7 +47,10 @@ openrouter:
 generation:
   temperature: 0.8
   max_tokens: 2048
-  # prompt_generator settings land here once seed tasks are provided
+  seeds_path: "data/seeds.jsonl"
+  tasks_per_call: 5        # new tasks requested per teacher call
+  few_shot_k: 3            # random seeds shown as examples per call
+  code_fraction: 0.5       # share of generated tasks that are code tasks
 
 evaluation:
   code_exec_timeout_s: 15

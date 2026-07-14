@@ -15,7 +15,7 @@ backend/
     config.py             # typed config loader (single source of truth)
     teacher_client.py     # OpenRouter client: rate limit, hard budget cap (SQLite), retries
     evaluator.py          # code tasks: run tests; general tasks: LLM judge (RLAIF)
-    prompt_generator.py   # stub — awaiting seed tasks
+    prompt_generator.py   # seeds -> new tasks via teacher (self-instruct, validated JSONL)
     dataset_manager.py    # stub — SQLite store, dedup, JSONL export
     trainer.py            # stub — LoRA fine-tune (Unsloth/peft/trl)
     benchmark.py          # stub — gold-set eval, per-tier score history
@@ -24,6 +24,7 @@ backend/
   tests/                  # no-network unit tests (14 passing)
   requirements.txt
 data/
+  seeds.jsonl             # human-written seed tasks feeding prompt_generator
   gold_set/               # human-verified benchmark — NEVER trains the model
 frontend/                 # Tauri + React (scaffolded after backend pipeline works)
 ```
