@@ -1,0 +1,14 @@
+# Core (phase 1 pipeline)
+fastapi>=0.115
+uvicorn[standard]>=0.30
+requests>=2.32
+pyyaml>=6.0
+pytest>=8.0
+
+# Training (install when trainer.py lands — heavy, GPU-dependent)
+# unsloth
+# transformers>=4.44
+# peft>=0.12
+# trl>=0.9
+# datasets
+# sentence-transformers   # embeddings for dataset dedup

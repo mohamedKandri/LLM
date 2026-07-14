@@ -1,0 +1,91 @@
+# ============================================================
+# Distill — configuration
+#
+# teacher_tier is the single switch between Phase 1 (free) and
+# Phase 2 (paid). Everything the pipeline logs — training pairs,
+# benchmark scores, spend — is tagged with the tier that was
+# active at the time, so phases never overwrite each other.
+# ============================================================
+
+# Active phase / tier. The "Graduate to phase 2" flow only edits
+# these two lines — no code changes.
+phase: 1
+teacher_tier: free            # "free" | "paid"
+
+teachers:
+  free:
+    model: "meta-llama/llama-3.3-70b-instruct:free"
+    rate_limit_per_min: 20    # OpenRouter free-tier limit
+    budget:
+      max_usd: 0.0            # free tier must never spend; any reported cost trips the cap
+      max_calls: 2000         # hard call ceiling, enforced in code
+  paid:
+    model: "anthropic/claude-sonnet-4.5"
+    rate_limit_per_min: 60
+    budget:
+      max_usd: 10.00
+      max_calls: 5000
+
+# Second-opinion model used by evaluator.py for RLAIF scoring of
+# non-code tasks. Kept separate from the teacher so you can judge
+# with a cheap model while generating with an expensive one.
+judge:
+  model: "meta-llama/llama-3.3-70b-instruct:free"
+  rate_limit_per_min: 20
+  min_score: 7                # 1-10; pairs below this are discarded
+  budget:
+    max_usd: 0.0
+    max_calls: 4000
+
+openrouter:
+  base_url: "https://openrouter.ai/api/v1"
+  api_key_env: "OPENROUTER_API_KEY"   # key lives in env / OS keychain, never in this file
+  timeout_s: 120
+  max_retries: 5
+  backoff_base_s: 2.0
+
+generation:
+  temperature: 0.8
+  max_tokens: 2048
+  # prompt_generator settings land here once seed tasks are provided
+
+evaluation:
+  code_exec_timeout_s: 15
+  accept_threshold: 0.7       # normalized 0-1; code pass/fail maps to 1.0/0.0
+
+student:
+  base_model: "Qwen/Qwen2.5-7B-Instruct"
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.05
+    target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+  train:
+    retrain_every_n_accepted: 200
+    epochs: 2
+    lr: 2.0e-4
+    batch_size: 2
+    grad_accum: 8
+  export:
+    gguf: true
+    checkpoints_dir: "data/checkpoints"
+
+benchmark:
+  gold_set_path: "data/gold_set/gold.jsonl"   # human-verified, NEVER enters training data
+  # Graduation targets: local-model score as a fraction of the active
+  # teacher's score on the same gold set. Tracked per tier in SQLite
+  # (benchmark_vs_free / benchmark_vs_paid), never overwritten.
+  targets:
+    free: 0.90
+    paid: 0.85
+
+storage:
+  db_path: "data/distill.db"
+  export_dir: "data/exports"
+  dedup_similarity_threshold: 0.92   # cosine sim on embeddings; above = duplicate
+
+inference:
+  # "Go local" flips this to true: API calls hard-disabled, inference
+  # served from the fine-tuned GGUF via Ollama / llama.cpp.
+  local_only: false
+  ollama_model_name: "distill-student"

@@ -1,6 +1,16 @@
 # Dependencies
 node_modules/
 vendor/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Distill runtime artifacts (keep gold_set — it's versioned)
+data/*.db
+data/*.db-*
+data/exports/
+data/checkpoints/
 
 # Environment
 .env
