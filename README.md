@@ -19,9 +19,9 @@ backend/
     dataset_manager.py    # SQLite store, dedup (hashed trigrams), JSONL export, gold-set guard
     trainer.py            # stub — LoRA fine-tune (transformers/peft/trl, CPU-sized model)
     benchmark.py          # student vs active teacher on the gold set, per-tier history, cached teacher answers
-    orchestrator.py       # stub — main loop + graduate()/go_local()
-    main.py               # FastAPI server for the Tauri UI
-  tests/                  # no-network unit tests (41 passing)
+    orchestrator.py       # background loop (generate->answer->evaluate->save->retrain hook), start/pause/stop, graduate()/go_local()
+    main.py               # FastAPI server for the Tauri UI (/run/start,pause,resume,stop, /graduate, /go-local)
+  tests/                  # no-network unit tests (53 passing; a couple mock the network to test retry behavior)
   requirements.txt
 data/
   seeds.jsonl             # human-written seed tasks feeding prompt_generator

@@ -37,6 +37,7 @@ import math
 import re
 import sqlite3
 import threading
+from contextlib import contextmanager
 from array import array
 from dataclasses import dataclass
 from pathlib import Path
@@ -123,10 +124,15 @@ class DatasetManager:
                 self._cache.append((row_id, _unpack(blob)))
         self._gold_prompts = self._load_gold_prompts()
 
-    def _conn(self) -> sqlite3.Connection:
+    @contextmanager
+    def _conn(self):
         conn = sqlite3.connect(self.db_path)
         conn.execute("PRAGMA journal_mode=WAL")
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _load_gold_prompts(self) -> set[str]:
         path = self.cfg.gold_set_path

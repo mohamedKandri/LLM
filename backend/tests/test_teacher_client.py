@@ -1,5 +1,7 @@
 """Budget/rate-limit/config behavior — no network calls."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from app.config import load_config
@@ -9,6 +11,7 @@ from app.teacher_client import (
     LocalOnlyModeError,
     MissingAPIKeyError,
     TeacherClient,
+    TeacherClientError,
 )
 
 
@@ -77,3 +80,40 @@ def test_missing_api_key_raises(cfg, monkeypatch):
     client = TeacherClient(cfg, cfg.teacher)
     with pytest.raises(MissingAPIKeyError):
         client.complete([{"role": "user", "content": "hi"}])
+
+
+def _mock_response(status_code, json_body, headers=None):
+    r = MagicMock()
+    r.status_code = status_code
+    r.json.return_value = json_body
+    r.headers = headers or {}
+    r.text = str(json_body)
+    return r
+
+
+def test_embedded_200_error_is_retried_then_recovers(cfg, monkeypatch):
+    # Observed live: OpenRouter's free tier under provider load returns
+    # HTTP 200 with an {"error": {...}} body instead of a real error
+    # status. Must be retried like any other transient failure, not
+    # treated as a fatal "malformed response".
+    monkeypatch.setenv(cfg.openrouter["api_key_env"], "sk-test")
+    cfg.raw["openrouter"]["backoff_base_s"] = 0.01  # keep the test fast
+    client = TeacherClient(cfg, cfg.teacher)
+    responses = [
+        _mock_response(200, {"error": {"message": "Upstream ResourceExhausted", "code": 502}}),
+        _mock_response(200, {"choices": [{"message": {"content": "hi back"}}], "model": "m", "usage": {}}),
+    ]
+    with patch("app.teacher_client.requests.post", side_effect=responses):
+        reply = client.complete([{"role": "user", "content": "hi"}])
+    assert reply.text == "hi back"
+
+
+def test_embedded_200_error_raises_after_exhausting_retries(cfg, monkeypatch):
+    monkeypatch.setenv(cfg.openrouter["api_key_env"], "sk-test")
+    cfg.raw["openrouter"]["max_retries"] = 1
+    cfg.raw["openrouter"]["backoff_base_s"] = 0.01
+    client = TeacherClient(cfg, cfg.teacher)
+    error_response = _mock_response(200, {"error": {"message": "still down"}})
+    with patch("app.teacher_client.requests.post", return_value=error_response):
+        with pytest.raises(TeacherClientError, match="embedded error"):
+            client.complete([{"role": "user", "content": "hi"}])

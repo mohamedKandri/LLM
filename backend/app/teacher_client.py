@@ -18,6 +18,7 @@ import random
 import sqlite3
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
@@ -104,10 +105,20 @@ class BudgetLedger:
                 """
             )
 
-    def _conn(self) -> sqlite3.Connection:
+    @contextmanager
+    def _conn(self):
+        # Nested `with conn:` commits/rolls back the transaction; the
+        # outer try/finally guarantees the file handle is actually
+        # closed too — sqlite3.Connection's own context manager only
+        # does the former, which leaks handles on long-running loops
+        # (and on Windows, blocks deleting the db file at all).
         conn = sqlite3.connect(self.db_path)
         conn.execute("PRAGMA journal_mode=WAL")
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def totals(self, tier: str, role: str) -> tuple[float, int]:
         with self._conn() as conn:
@@ -247,7 +258,17 @@ class TeacherClient:
             try:
                 r = requests.post(url, headers=headers, json=payload, timeout=timeout)
                 if r.status_code == 200:
-                    return r.json()
+                    data = r.json()
+                    if "error" not in data:
+                        return data
+                    # Some upstream failures come back as HTTP 200 with an
+                    # {"error": {...}} body instead of a real error status
+                    # (seen on OpenRouter's free tier under provider load)
+                    # — treat it exactly like a retryable HTTP status.
+                    if attempt < max_retries:
+                        time.sleep(backoff * (2**attempt) + random.uniform(0, 1))
+                        continue
+                    raise TeacherClientError(f"OpenRouter embedded error: {data['error']}")
                 if r.status_code in _RETRYABLE_STATUS and attempt < max_retries:
                     retry_after = r.headers.get("Retry-After")
                     delay = (

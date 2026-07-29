@@ -6,9 +6,23 @@ from fastapi import FastAPI, HTTPException
 
 from .config import load_config
 from .dataset_manager import DatasetManager
+from .orchestrator import Orchestrator
 from .teacher_client import BudgetLedger
 
 app = FastAPI(title="Distill", version="0.1.0")
+
+# Single long-lived orchestrator for the process, built lazily so
+# importing this module (e.g. for /status in tests) never spins up a
+# TeacherClient/PromptGenerator/DatasetManager unless a run is actually
+# started or its live state is queried.
+_orchestrator: Orchestrator | None = None
+
+
+def _get_orchestrator() -> Orchestrator:
+    global _orchestrator
+    if _orchestrator is None:
+        _orchestrator = Orchestrator(load_config())
+    return _orchestrator
 
 
 @app.get("/health")
@@ -41,22 +55,49 @@ def status():
     }
 
 
-# --- to be wired to Orchestrator once it exists -------------------------
+@app.get("/run/status")
+def run_status():
+    """Live orchestrator state: running/paused, counters, spend."""
+    return _get_orchestrator().snapshot()
+
+
 @app.post("/run/start")
 def run_start():
-    raise HTTPException(501, "Orchestrator not implemented yet")
+    _get_orchestrator().start()
+    return _get_orchestrator().snapshot()
+
+
+@app.post("/run/pause")
+def run_pause():
+    _get_orchestrator().pause()
+    return _get_orchestrator().snapshot()
+
+
+@app.post("/run/resume")
+def run_resume():
+    _get_orchestrator().resume()
+    return _get_orchestrator().snapshot()
 
 
 @app.post("/run/stop")
 def run_stop():
-    raise HTTPException(501, "Orchestrator not implemented yet")
+    _get_orchestrator().stop()
+    return _get_orchestrator().snapshot()
 
 
 @app.post("/graduate")
 def graduate():
-    raise HTTPException(501, "Implemented with Orchestrator.graduate()")
+    try:
+        _get_orchestrator().graduate()
+    except RuntimeError as e:
+        raise HTTPException(400, str(e)) from e
+    return _get_orchestrator().snapshot()
 
 
 @app.post("/go-local")
 def go_local():
-    raise HTTPException(501, "Implemented with Orchestrator.go_local()")
+    try:
+        _get_orchestrator().go_local()
+    except RuntimeError as e:
+        raise HTTPException(400, str(e)) from e
+    return _get_orchestrator().snapshot()
