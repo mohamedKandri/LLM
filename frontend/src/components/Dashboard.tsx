@@ -9,6 +9,26 @@ function fmtUsd(n: number) {
   return `$${n.toFixed(4)}`;
 }
 
+function describeRunError(lastError: string | null): string | null {
+  if (!lastError) return null;
+  const firstLine = lastError.split("\n")[0];
+  // TeacherClientError messages often embed the raw OpenRouter JSON body
+  // ("OpenRouter HTTP 429: {...}") — pull out .error.message for a
+  // readable summary instead of showing the raw blob (or, worse, just
+  // the generic "error" stop_reason with no detail at all).
+  const jsonStart = firstLine.indexOf("{");
+  if (jsonStart !== -1) {
+    try {
+      const parsed = JSON.parse(firstLine.slice(jsonStart));
+      const msg = parsed?.error?.message;
+      if (typeof msg === "string") return msg;
+    } catch {
+      // not parseable JSON — fall through to raw (truncated) text
+    }
+  }
+  return firstLine.length > 220 ? firstLine.slice(0, 220) + "…" : firstLine;
+}
+
 function BudgetBar({ spent, cap }: { spent: number; cap: number }) {
   const pct = cap > 0 ? Math.min((spent / cap) * 100, 100) : 0;
   const cls = pct >= 100 ? "critical" : pct >= 80 ? "warning" : "";
@@ -76,7 +96,7 @@ export function Dashboard() {
       {error && <div className="message error">{error}</div>}
       {notice && <div className="message success">{notice}</div>}
       {runStatus.last_error && (
-        <div className="message error">Run stopped on an error: {runStatus.stop_reason}</div>
+        <div className="message error">Run stopped: {describeRunError(runStatus.last_error)}</div>
       )}
 
       <div className="card">
