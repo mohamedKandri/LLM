@@ -11,6 +11,7 @@ from .benchmark import read_history
 from .config import load_config
 from .dataset_manager import DatasetManager
 from .orchestrator import Orchestrator
+from .retrain_flow import make_retrain_fn
 from .teacher_client import BudgetLedger
 
 app = FastAPI(title="Distill", version="0.1.0")
@@ -35,7 +36,9 @@ _orchestrator: Orchestrator | None = None
 def _get_orchestrator() -> Orchestrator:
     global _orchestrator
     if _orchestrator is None:
-        _orchestrator = Orchestrator(load_config())
+        orch = Orchestrator(load_config())
+        orch.retrain_fn = make_retrain_fn(orch)
+        _orchestrator = orch
     return _orchestrator
 
 

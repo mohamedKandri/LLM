@@ -84,7 +84,7 @@ class Trainer:
             tokenizer.pad_token = tokenizer.eos_token
 
         model = AutoModelForCausalLM.from_pretrained(
-            base_model, torch_dtype=torch.float32, device_map="cpu"
+            base_model, dtype=torch.float32, device_map="cpu"
         )
         model = get_peft_model(
             model,
@@ -169,7 +169,7 @@ class Trainer:
         out_dir = Path(out_dir)
         base_model = self.cfg.raw["student"]["base_model"]
 
-        base = AutoModelForCausalLM.from_pretrained(base_model, torch_dtype=torch.float32, device_map="cpu")
+        base = AutoModelForCausalLM.from_pretrained(base_model, dtype=torch.float32, device_map="cpu")
         merged = PeftModel.from_pretrained(base, checkpoint_dir).merge_and_unload()
         out_dir.mkdir(parents=True, exist_ok=True)
         merged.save_pretrained(out_dir)

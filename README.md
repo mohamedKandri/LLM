@@ -18,11 +18,13 @@ backend/
     prompt_generator.py   # seeds -> new tasks via teacher (self-instruct, validated JSONL)
     dataset_manager.py    # SQLite store, dedup (hashed trigrams), JSONL export, gold-set guard
     trainer.py            # LoRA fine-tune (transformers/peft/trl), CPU-only, GGUF export via llama.cpp (optional)
+    local_inference.py    # loads a trained checkpoint (base + LoRA adapter) and generates real completions
+    retrain_flow.py        # wires dataset export -> trainer -> local_inference -> benchmark into orchestrator's retrain hook
     benchmark.py          # student vs active teacher on the gold set, per-tier history, cached teacher answers
-    orchestrator.py       # background loop (generate->answer->evaluate->save->retrain hook), start/pause/stop, graduate()/go_local()
+    orchestrator.py       # background loop (generate->answer->evaluate->save->retrain), start/pause/stop, graduate()/go_local()
     settings_store.py     # read/write for the Settings UI: teacher model + budget, API key (.env), seed CRUD
     main.py               # FastAPI server for the UI — /status, /run/*, /graduate, /go-local, /settings, /seeds, /benchmark/history
-  tests/                  # no-network unit tests + FastAPI TestClient integration tests (95 passing)
+  tests/                  # no-network unit tests + FastAPI TestClient integration tests (100 passing)
   requirements.txt
 data/
   seeds.jsonl             # human-written seed tasks feeding prompt_generator
@@ -47,9 +49,11 @@ cd backend
 ```
 
 Tests: `cd backend; .venv\Scripts\python -m pytest tests -q`
-(Trainer unit tests don't need torch/transformers installed — those heavy
-imports are deferred into `Trainer.train()`, only exercised live via
-`scripts/smoke_test_trainer.py`.)
+(Trainer/local-inference unit tests don't need torch/transformers
+installed — those heavy imports are deferred into `Trainer.train()` /
+`LocalStudent.generate()`, only exercised live via
+`scripts/smoke_test_trainer.py` and
+`scripts/smoke_test_local_inference.py`.)
 
 ## Quick start (frontend)
 
@@ -82,6 +86,23 @@ seconds. If that's too slow in practice, lower `retrain_every_n_accepted`
 or `student.train.epochs` in `config.yaml`, or move training to a GPU
 machine later (only `student.base_model` needs to change — the code
 doesn't hardcode model size).
+
+## The retrain loop, end to end
+
+`orchestrator.py`'s retrain hook (fired every
+`student.train.retrain_every_n_accepted` accepted examples) is wired to
+`retrain_flow.make_retrain_fn()`, which does the full cycle for real:
+`dataset_manager.export_jsonl()` -> `trainer.train()` -> load the new
+checkpoint via `local_inference.LocalStudent` -> `benchmark.run()`
+against the active teacher's gold-set answers. This runs synchronously
+inside the orchestrator's own background thread — a retrain is an
+intentional pause of generation while it's in progress, not something
+that needs its own thread pool.
+
+Verified live via `scripts/smoke_test_local_inference.py`: trained a
+tiny checkpoint, reloaded it fresh, and asked it "What is the capital
+of France?" — it answered "The capital of France is Paris." Real
+weights, real generation, no API calls.
 
 ## Safety rails
 
