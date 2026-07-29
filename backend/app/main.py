@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 
 from .config import load_config
+from .dataset_manager import DatasetManager
 from .teacher_client import BudgetLedger
 
 app = FastAPI(title="Distill", version="0.1.0")
@@ -36,6 +37,7 @@ def status():
             "max_calls": cfg.teacher.budget.max_calls,
         },
         "benchmark_target": cfg.benchmark_target,
+        "dataset_counts": DatasetManager(cfg).counts(),
     }
 
 

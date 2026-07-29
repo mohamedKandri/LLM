@@ -16,12 +16,12 @@ backend/
     teacher_client.py     # OpenRouter client: rate limit, hard budget cap (SQLite), retries
     evaluator.py          # code tasks: run tests; general tasks: LLM judge (RLAIF)
     prompt_generator.py   # seeds -> new tasks via teacher (self-instruct, validated JSONL)
-    dataset_manager.py    # stub — SQLite store, dedup, JSONL export
+    dataset_manager.py    # SQLite store, dedup (hashed trigrams), JSONL export, gold-set guard
     trainer.py            # stub — LoRA fine-tune (Unsloth/peft/trl)
     benchmark.py          # stub — gold-set eval, per-tier score history
     orchestrator.py       # stub — main loop + graduate()/go_local()
     main.py               # FastAPI server for the Tauri UI
-  tests/                  # no-network unit tests (14 passing)
+  tests/                  # no-network unit tests (32 passing)
   requirements.txt
 data/
   seeds.jsonl             # human-written seed tasks feeding prompt_generator
@@ -46,6 +46,7 @@ Tests: `cd backend; .venv\Scripts\python -m pytest tests -q`
 - **Budget cap enforced in code**: `BudgetLedger` (SQLite) checks USD +
   call totals before every API call; hitting the cap raises, persists
   across restarts.
-- **Gold set never enters training data.**
+- **Gold set never enters training data** — `dataset_manager.add()` checks every
+  prompt against the gold set before accepting it.
 - Every API call and training example is tagged with the tier
   (`free`/`paid`) active when it was created — full per-phase audit log.
