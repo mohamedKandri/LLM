@@ -27,6 +27,8 @@ from .teacher_client import TeacherClient, TeacherClientError
 
 _CODE_BLOCK_RE = re.compile(r"```(?:python|py)?\s*\n(.*?)```", re.DOTALL)
 _JUDGE_SCORE_RE = re.compile(r"SCORE:\s*(\d{1,2})")
+_DOCTEST_PROMPT_RE = re.compile(r"^\s*(>>>|\.\.\.)(\s|$)")
+_TOP_LEVEL_RE = re.compile(r"^(def |class |@|import |from |#)")
 
 JUDGE_SYSTEM_PROMPT = """\
 You are a strict evaluator of assistant responses. Score the RESPONSE to the
@@ -105,15 +107,51 @@ class Evaluator:
     @staticmethod
     def _extract_code(text: str) -> str | None:
         blocks = _CODE_BLOCK_RE.findall(text)
-        if blocks:
-            # Concatenate: teachers often split imports and solution.
-            return "\n\n".join(b.strip() for b in blocks)
-        # Bare-code fallback: response that compiles as Python is accepted as-is.
+        # Concatenate: teachers often split imports and solution.
+        code = "\n\n".join(b.strip() for b in blocks) if blocks else text
+        return Evaluator._compile_or_repair(code)
+
+    @staticmethod
+    def _compile_or_repair(code: str) -> str | None:
+        """Try the block as-is first, so legitimate docstring doctests are
+        never touched. Teachers sometimes paste an interactive (>>> ...)
+        usage example directly inside the code fence alongside the real
+        solution — those lines and their printed output aren't valid
+        top-level statements. Only if compiling fails, strip anything
+        that looks like a doctest transcript and retry once."""
         try:
-            compile(text, "<candidate>", "exec")
-            return text
+            compile(code, "<candidate>", "exec")
+            return code
+        except SyntaxError:
+            pass
+        repaired = Evaluator._strip_doctest_transcript(code)
+        if repaired == code:
+            return None
+        try:
+            compile(repaired, "<candidate>", "exec")
+            return repaired
         except SyntaxError:
             return None
+
+    @staticmethod
+    def _strip_doctest_transcript(code: str) -> str:
+        out = []
+        in_transcript = False
+        for line in code.splitlines():
+            if _DOCTEST_PROMPT_RE.match(line):
+                in_transcript = True
+                continue
+            if in_transcript:
+                if not line.strip():
+                    in_transcript = False
+                    continue  # drop the blank separator line itself
+                if _TOP_LEVEL_RE.match(line):
+                    in_transcript = False
+                    out.append(line)
+                    continue
+                continue  # printed output from the transcript — drop
+            out.append(line)
+        return "\n".join(out)
 
     # -- judge path (RLAIF) ---------------------------------------------
     def _eval_with_judge(self, task: dict[str, Any], response_text: str) -> EvalResult:

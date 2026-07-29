@@ -42,6 +42,40 @@ def test_no_code_block_and_not_python(evaluator):
     assert not r.passed and "no code block" in r.details["error"]
 
 
+def test_code_with_embedded_doctest_transcript_is_repaired(evaluator):
+    # Observed live: a teacher pasted a >>> usage example inside the same
+    # fence as the solution. Those lines aren't valid top-level statements
+    # on their own and used to hard-fail the whole block with a SyntaxError.
+    resp = (
+        "```python\n"
+        "def add(a, b):\n"
+        "    return a + b\n"
+        "\n"
+        ">>> add(2, 3)\n"
+        "5\n"
+        "```"
+    )
+    r = evaluator.evaluate(CODE_TASK, resp)
+    assert r.passed and r.score == 1.0
+
+
+def test_valid_docstring_doctest_is_left_alone(evaluator):
+    # A >>> example legitimately inside a triple-quoted docstring already
+    # compiles fine — the repair path must never be needed/triggered for it.
+    resp = (
+        "```python\n"
+        "def add(a, b):\n"
+        '    """Add two numbers.\n\n'
+        "    >>> add(2, 3)\n"
+        "    5\n"
+        '    """\n'
+        "    return a + b\n"
+        "```"
+    )
+    r = evaluator.evaluate(CODE_TASK, resp)
+    assert r.passed and r.score == 1.0
+
+
 def test_multiple_blocks_concatenated(evaluator):
     resp = "```python\nimport math\n```\nthen\n```python\ndef add(a, b):\n    return a + b\n```"
     r = evaluator.evaluate(CODE_TASK, resp)
