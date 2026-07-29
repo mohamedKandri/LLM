@@ -20,14 +20,19 @@ backend/
     trainer.py            # LoRA fine-tune (transformers/peft/trl), CPU-only, GGUF export via llama.cpp (optional)
     benchmark.py          # student vs active teacher on the gold set, per-tier history, cached teacher answers
     orchestrator.py       # background loop (generate->answer->evaluate->save->retrain hook), start/pause/stop, graduate()/go_local()
-    main.py               # FastAPI server for the Tauri UI (/run/start,pause,resume,stop, /graduate, /go-local)
-  tests/                  # no-network unit tests (61 passing; a couple mock the network to test retry behavior)
+    settings_store.py     # read/write for the Settings UI: teacher model + budget, API key (.env), seed CRUD
+    main.py               # FastAPI server for the UI — /status, /run/*, /graduate, /go-local, /settings, /seeds, /benchmark/history
+  tests/                  # no-network unit tests + FastAPI TestClient integration tests (95 passing)
   requirements.txt
 data/
   seeds.jsonl             # human-written seed tasks feeding prompt_generator
   gold_set/gold.jsonl     # benchmark set (20 entries, AI-drafted — needs your review, see its README) — NEVER trains the model
   checkpoints/            # LoRA adapter checkpoints, one per generation (gitignored)
-frontend/                 # Tauri + React (scaffolded after backend pipeline works)
+frontend/                 # Tauri + React + TypeScript desktop UI
+  src/
+    api.ts, types.ts      # typed client for the FastAPI backend
+    components/           # Dashboard (run controls, spend, benchmark chart), Settings, SeedEditor
+  src-tauri/               # Rust shell (native window, packaging)
 ```
 
 ## Quick start (backend)
@@ -45,6 +50,24 @@ Tests: `cd backend; .venv\Scripts\python -m pytest tests -q`
 (Trainer unit tests don't need torch/transformers installed — those heavy
 imports are deferred into `Trainer.train()`, only exercised live via
 `scripts/smoke_test_trainer.py`.)
+
+## Quick start (frontend)
+
+Needs Node.js (already have it if `node -v` works) and Rust (for the
+Tauri native shell — install via https://rustup.rs; needs MSVC Build
+Tools on Windows, `Desktop development with C++` in the VS Installer).
+
+```powershell
+cd frontend
+npm install
+npm run dev          # browser dev server at http://localhost:1420, talks to :8791
+# or, once Rust is installed:
+npm run tauri dev    # native desktop window
+```
+
+The backend must be running separately (`uvicorn app.main:app --port 8791`,
+see above) — the UI is just an HTTP client against it, whether run as a
+browser tab or a Tauri window.
 
 ## Training on CPU — set expectations
 
