@@ -80,6 +80,13 @@ student:
     gguf: true
     checkpoints_dir: "data/checkpoints"
 
+# GGUF conversion (for Ollama/llama.cpp local inference) delegates to
+# llama.cpp's own convert_hf_to_gguf.py rather than reimplementing GGUF's
+# metadata format — set this once you've cloned
+# https://github.com/ggerganov/llama.cpp. Training works without it.
+trainer:
+  llama_cpp_convert_script: null
+
 benchmark:
   gold_set_path: "data/gold_set/gold.jsonl"   # human-verified, NEVER enters training data
   # Graduation targets: local-model score as a fraction of the active

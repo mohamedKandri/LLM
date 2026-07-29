@@ -112,6 +112,10 @@ class DistillConfig:
     def gold_set_path(self) -> Path:
         return ROOT / self.raw["benchmark"]["gold_set_path"]
 
+    @property
+    def checkpoints_dir(self) -> Path:
+        return ROOT / self.raw["student"]["export"]["checkpoints_dir"]
+
 
 def _read_dotenv() -> dict[str, str]:
     """Minimal .env reader (repo root). The key never lives in config.yaml;

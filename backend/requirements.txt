@@ -5,10 +5,16 @@ requests>=2.32
 pyyaml>=6.0
 pytest>=8.0
 
-# Training (install when trainer.py lands — heavy, GPU-dependent)
-# unsloth
-# transformers>=4.44
-# peft>=0.12
-# trl>=0.9
-# datasets
-# sentence-transformers   # embeddings for dataset dedup
+# Training (trainer.py) — CPU-only on this dev machine (no discrete
+# GPU), so plain transformers+peft+trl, not Unsloth (requires CUDA).
+# Install the CPU build of torch first: pip install torch --index-url
+# https://download.pytorch.org/whl/cpu
+torch
+transformers>=4.46
+peft>=0.13
+trl>=0.12
+datasets
+
+# sentence-transformers   # optional: swap in for dataset_manager's
+                          # dedup embedder if the hashed-trigram default
+                          # isn't precise enough later

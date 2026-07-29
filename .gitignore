@@ -11,6 +11,7 @@ data/*.db
 data/*.db-*
 data/exports/
 data/checkpoints/
+scripts/tmp_trainer_smoke/
 
 # Environment
 .env
