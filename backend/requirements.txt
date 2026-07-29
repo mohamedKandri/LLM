@@ -4,6 +4,7 @@ uvicorn[standard]>=0.30
 requests>=2.32
 pyyaml>=6.0
 pytest>=8.0
+httpx>=0.27         # FastAPI TestClient (tests/test_main.py)
 
 # Training (trainer.py) — CPU-only on this dev machine (no discrete
 # GPU), so plain transformers+peft+trl, not Unsloth (requires CUDA).

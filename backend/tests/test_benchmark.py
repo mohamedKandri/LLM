@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from app.benchmark import Benchmark
+from app.benchmark import Benchmark, read_history
 from app.config import load_config
 from app.evaluator import Evaluator
 
@@ -133,3 +133,15 @@ def test_missing_gold_set_raises(tmp_path):
     cfg.raw["benchmark"]["gold_set_path"] = str(tmp_path / "does_not_exist.jsonl")
     with pytest.raises(FileNotFoundError):
         Benchmark(cfg, FakeTeacher(), Evaluator(cfg, judge_client=FakeJudge()))
+
+
+def test_read_history_empty_before_any_table_exists(tmp_path):
+    # No Benchmark has ever run against this DB — table doesn't exist yet.
+    assert read_history(tmp_path / "fresh.db") == []
+
+
+def test_read_history_matches_benchmark_history(bench, cfg):
+    b, _ = bench
+    b.run(perfect_student)
+    assert read_history(cfg.db_path) == b.history()
+    assert read_history(cfg.db_path, tier="paid") == []

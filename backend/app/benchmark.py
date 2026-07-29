@@ -40,6 +40,46 @@ from .teacher_client import TeacherClient
 StudentInferFn = Callable[[str], str]
 
 
+def read_history(db_path: str | Path, tier: str | None = None) -> list[dict]:
+    """Standalone reader for the API/UI: no gold set, teacher, or
+    evaluator needed, just the DB. Safe to call before any Benchmark has
+    ever run in this DB (table may not exist yet -> empty list)."""
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        exists = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='benchmark_runs'"
+        ).fetchone()
+        if not exists:
+            return []
+        query = (
+            "SELECT id, teacher_tier, teacher_model, student_score, teacher_score, "
+            "ratio, target, target_met, created_at FROM benchmark_runs"
+        )
+        params: tuple = ()
+        if tier:
+            query += " WHERE teacher_tier = ?"
+            params = (tier,)
+        query += " ORDER BY id"
+        rows = conn.execute(query, params).fetchall()
+    finally:
+        conn.close()
+    return [
+        {
+            "id": r[0],
+            "teacher_tier": r[1],
+            "teacher_model": r[2],
+            "student_score": r[3],
+            "teacher_score": r[4],
+            "ratio": r[5],
+            "target": r[6],
+            "target_met": bool(r[7]),
+            "created_at": r[8],
+        }
+        for r in rows
+    ]
+
+
 def _load_gold(path: Path) -> list[dict]:
     tasks = []
     with open(path, encoding="utf-8") as f:
