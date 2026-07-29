@@ -21,11 +21,11 @@ backend/
     benchmark.py          # stub — gold-set eval, per-tier score history
     orchestrator.py       # stub — main loop + graduate()/go_local()
     main.py               # FastAPI server for the Tauri UI
-  tests/                  # no-network unit tests (32 passing)
+  tests/                  # no-network unit tests (35 passing)
   requirements.txt
 data/
   seeds.jsonl             # human-written seed tasks feeding prompt_generator
-  gold_set/               # human-verified benchmark — NEVER trains the model
+  gold_set/gold.jsonl     # benchmark set (20 entries, AI-drafted — needs your review, see its README) — NEVER trains the model
 frontend/                 # Tauri + React (scaffolded after backend pipeline works)
 ```
 
