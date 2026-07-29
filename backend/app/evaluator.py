@@ -158,11 +158,15 @@ class Evaluator:
         if self.judge_client is None:
             raise TeacherClientError("Evaluator needs a judge_client for general tasks")
 
+        # Gold-set tasks carry a human "reference" answer for grounding;
+        # self-instruct tasks don't have one, so this is a no-op for them.
+        reference = task.get("reference")
+        ref_block = f"\n\nREFERENCE ANSWER (for grounding, not exhaustive):\n{reference}" if reference else ""
         messages = [
             {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
             {
                 "role": "user",
-                "content": f"PROMPT:\n{task['prompt']}\n\nRESPONSE:\n{response_text}",
+                "content": f"PROMPT:\n{task['prompt']}{ref_block}\n\nRESPONSE:\n{response_text}",
             },
         ]
         # One re-ask if the judge doesn't follow the SCORE format.

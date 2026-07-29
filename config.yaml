@@ -58,8 +58,13 @@ evaluation:
   code_exec_timeout_s: 15
   accept_threshold: 0.7       # normalized 0-1; code pass/fail maps to 1.0/0.0
 
+# Base model sized for CPU-only training: this dev machine has no
+# discrete GPU and 7.7GB RAM, which rules out a 7B/8B model locally
+# (Unsloth also requires CUDA, so trainer.py targets plain
+# transformers + peft + trl on CPU instead). Swap to a 7B+ model here
+# if training ever moves to a GPU machine — nothing else changes.
 student:
-  base_model: "Qwen/Qwen2.5-7B-Instruct"
+  base_model: "Qwen/Qwen2.5-0.5B-Instruct"
   lora:
     r: 16
     alpha: 32

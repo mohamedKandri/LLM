@@ -17,11 +17,11 @@ backend/
     evaluator.py          # code tasks: run tests; general tasks: LLM judge (RLAIF)
     prompt_generator.py   # seeds -> new tasks via teacher (self-instruct, validated JSONL)
     dataset_manager.py    # SQLite store, dedup (hashed trigrams), JSONL export, gold-set guard
-    trainer.py            # stub — LoRA fine-tune (Unsloth/peft/trl)
-    benchmark.py          # stub — gold-set eval, per-tier score history
+    trainer.py            # stub — LoRA fine-tune (transformers/peft/trl, CPU-sized model)
+    benchmark.py          # student vs active teacher on the gold set, per-tier history, cached teacher answers
     orchestrator.py       # stub — main loop + graduate()/go_local()
     main.py               # FastAPI server for the Tauri UI
-  tests/                  # no-network unit tests (35 passing)
+  tests/                  # no-network unit tests (41 passing)
   requirements.txt
 data/
   seeds.jsonl             # human-written seed tasks feeding prompt_generator
